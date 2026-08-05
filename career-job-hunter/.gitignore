@@ -1,0 +1,23 @@
+# Environment & secrets
+.env
+config.json
+
+# Local runtime data
+*.db
+*.sqlite3
+rapidapi_quota.json
+report_*.md
+
+# Python
+venv/
+__pycache__/
+*.py[cod]
+*.egg-info/
+.pytest_cache/
+
+# OS
+.DS_Store
+
+# SSH / credentials (never commit)
+id_*
+*.pem

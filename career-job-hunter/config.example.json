@@ -1,0 +1,108 @@
+{
+  "primary_source": "apify",
+  "apify": {
+    "actor_id": "curious_coder/linkedin-jobs-scraper",
+    "token_env_var": "APIFY_TOKEN",
+    "timeout_secs": 300,
+    "count_per_search": 20,
+    "scrape_company": false
+  },
+  "rapidapi_config": {
+    "endpoint": "https://linkedin-job-search-api.p.rapidapi.com/active-jb",
+    "headers": {
+      "x-rapidapi-key": "${RAPIDAPI_KEY}",
+      "x-rapidapi-host": "linkedin-job-search-api.p.rapidapi.com"
+    },
+    "params": {
+      "time_frame": "7d",
+      "description_format": "text",
+      "source": "linkedin"
+    },
+    "monthly_request_limit": 20,
+    "monthly_request_cap": 25,
+    "quota_file": "rapidapi_quota.json"
+  },
+  "search_params": {
+    "keywords": [
+      "Cloud Infrastructure",
+      "Kubernetes",
+      "DevOps",
+      "Software Engineer"
+    ],
+    "core_keywords": [
+      "Cloud Infrastructure",
+      "Kubernetes",
+      "DevOps"
+    ],
+    "locations": [
+      "New Zealand",
+      "Germany",
+      "United States",
+      "United Kingdom",
+      "Australia",
+      "Canada",
+      "Ireland"
+    ],
+    "allow_remote": false,
+    "work_types": ["on_site", "hybrid"],
+    "target_relocation": true,
+    "fetch_limit_per_request": 1000,
+    "time_frame": "7d",
+    "local_filter": {
+      "patterns": [
+        "kubernetes",
+        "k8s",
+        "devops",
+        "dev ops",
+        "terraform",
+        "cloud infrastructure",
+        "cloud engineer",
+        "infrastructure engineer",
+        "platform engineer",
+        "site reliability",
+        "\\bsre\\b",
+        "aws",
+        "gcp",
+        "azure",
+        "docker",
+        "ci/cd",
+        "cicd",
+        "observability",
+        "prometheus",
+        "grafana",
+        "helm",
+        "argocd",
+        "linux"
+      ],
+      "match_fields": ["title", "description"]
+    }
+  },
+  "user_profile": {
+    "summary": "YOUR_PROFILE_SUMMARY — describe your background, target roles, and relocation/visa preferences.",
+    "skills": [
+      "Go",
+      "Python",
+      "Cloud Infrastructure",
+      "Kubernetes",
+      "Docker",
+      "Terraform",
+      "CI/CD",
+      "Linux",
+      "AWS",
+      "GCP",
+      "Observability"
+    ],
+    "preferences": {
+      "visa_sponsorship": true,
+      "remote": false,
+      "target_roles": [
+        "Cloud Engineer",
+        "Infrastructure Engineer",
+        "DevOps Engineer",
+        "SRE",
+        "Platform Engineer"
+      ],
+      "notes": "Customize search preferences, e.g. on-site/hybrid only, target countries, visa/relocation requirements."
+    }
+  }
+}
