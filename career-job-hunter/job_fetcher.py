@@ -319,18 +319,7 @@ def extract_jobs_from_payload(
 
 def compile_filter_patterns(search_params: Dict[str, Any]) -> List[re.Pattern[str]]:
     local_filter = search_params.get("local_filter") or {}
-    patterns = local_filter.get("patterns") or [
-        "kubernetes",
-        "k8s",
-        "devops",
-        "terraform",
-        "cloud infrastructure",
-        "platform engineer",
-        "site reliability",
-        r"\bsre\b",
-        "aws",
-        "gcp",
-    ]
+    patterns = local_filter.get("patterns") or []
     return [re.compile(str(pattern), re.IGNORECASE) for pattern in patterns]
 
 
@@ -360,6 +349,8 @@ def filter_jobs_locally(
     local_filter = search_params.get("local_filter") or {}
     match_fields = local_filter.get("match_fields") or ["title", "description"]
     patterns = compile_filter_patterns(search_params)
+    if not patterns:
+        return jobs
 
     filtered: List[Dict[str, str]] = []
     for job in jobs:
@@ -732,11 +723,10 @@ def fetch_all_jobs(config_path: Path = DEFAULT_CONFIG_PATH) -> List[Dict[str, st
         return []
 
     print(f"Local filtering {len(raw_jobs)} raw job(s) (no extra network requests)...")
-    cloud_jobs = filter_jobs_locally(raw_jobs, search_params)
-    filtered_jobs = exclude_remote_jobs_locally(cloud_jobs, search_params)
+    matched_jobs = filter_jobs_locally(raw_jobs, search_params)
+    filtered_jobs = exclude_remote_jobs_locally(matched_jobs, search_params)
     print(
-        f"Local filter matched {len(filtered_jobs)}/{len(raw_jobs)} "
-        "Cloud/Infra on-site/hybrid job(s)."
+        f"Local filter matched {len(filtered_jobs)}/{len(raw_jobs)} job(s)."
     )
 
     seen: Dict[str, Dict[str, str]] = {}

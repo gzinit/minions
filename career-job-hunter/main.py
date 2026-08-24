@@ -1,5 +1,6 @@
 """Orchestrate job fetching, AI summarization, storage, and report generation."""
 
+import html
 from datetime import date
 from pathlib import Path
 from typing import Any, Dict, List, Optional
@@ -59,35 +60,138 @@ def group_jobs_by_country(
     return grouped
 
 
+def _esc(value: Any, fallback: str = "N/A") -> str:
+    if value is None:
+        return fallback
+    text = str(value).strip()
+    return html.escape(text) if text else fallback
+
+
+def _score_class(score: Any) -> str:
+    try:
+        numeric = float(score)
+    except (TypeError, ValueError):
+        return "score-na"
+    if numeric >= MIN_HIGH_QUALITY_SCORE:
+        return "score-high"
+    if numeric >= 5:
+        return "score-mid"
+    return "score-low"
+
+
 def format_job_entry(job: Dict[str, Any]) -> str:
-    tech_stack = ", ".join(job.get("tech_stack") or []) or "N/A"
+    title = _esc(job.get("title"), "Untitled")
+    company = _esc(job.get("company"), "Unknown")
+    url = _esc(job.get("url") or "#", "#")
+    score = job.get("match_score", "N/A")
+    tech_items = job.get("tech_stack") or []
+    tech_stack = ", ".join(_esc(item) for item in tech_items) if tech_items else "N/A"
     responsibilities = job.get("core_responsibilities") or []
-    responsibility_lines = "\n".join(f"  - {item}" for item in responsibilities)
+    if responsibilities:
+        responsibility_items = "\n".join(
+            f"<li>{_esc(item)}</li>" for item in responsibilities
+        )
+    else:
+        responsibility_items = "<li>N/A</li>"
 
-    return f"""#### [{job.get('title', 'Untitled')}]({job.get('url', '#')}) @ {job.get('company', 'Unknown')}
-
-- **Match Score:** {job.get('match_score', 'N/A')}/10
-- **Work Type:** {job.get('work_location_type', 'N/A')}
-- **Relocation Friendly:** {job.get('relocation_friendly', 'N/A')}
-- **Location:** {job.get('location', 'N/A')}
-- **Posted:** {job.get('posted_at', 'N/A')}
-- **Visa / Relocation:** {job.get('visa_relocation_info', 'N/A')}
-- **Tech Stack:** {tech_stack}
-- **Match Reason:** {job.get('match_reason', 'N/A')}
-
-**Core Responsibilities:**
-{responsibility_lines or '  - N/A'}
-"""
+    return f"""<article class="job-card">
+  <h4><a href="{url}" target="_blank" rel="noopener noreferrer">{title}</a> <span class="company">@ {company}</span></h4>
+  <ul class="meta">
+    <li><strong>Match Score:</strong> <span class="score {_score_class(score)}">{_esc(score)}/10</span></li>
+    <li><strong>Work Type:</strong> {_esc(job.get("work_location_type"))}</li>
+    <li><strong>Relocation Friendly:</strong> {_esc(job.get("relocation_friendly"))}</li>
+    <li><strong>Location:</strong> {_esc(job.get("location"))}</li>
+    <li><strong>Posted:</strong> {_esc(job.get("posted_at"))}</li>
+    <li><strong>Visa / Relocation:</strong> {_esc(job.get("visa_relocation_info"))}</li>
+    <li><strong>Tech Stack:</strong> {tech_stack}</li>
+    <li><strong>Match Reason:</strong> {_esc(job.get("match_reason"))}</li>
+  </ul>
+  <p class="responsibilities-label">Core Responsibilities</p>
+  <ul class="responsibilities">
+    {responsibility_items}
+  </ul>
+</article>"""
 
 
 def render_country_section(country: str, jobs: List[Dict[str, Any]]) -> str:
     if not jobs:
         return ""
-    lines = [f"### {country}", ""]
-    for job in jobs:
-        lines.append(format_job_entry(job))
-        lines.append("")
-    return "\n".join(lines)
+    cards = "\n".join(format_job_entry(job) for job in jobs)
+    return f"""<section class="country">
+  <h3>{_esc(country)}</h3>
+  {cards}
+</section>"""
+
+
+REPORT_CSS = """
+:root {
+  --bg: #f4f6f8;
+  --card: #ffffff;
+  --text: #1f2933;
+  --muted: #52606d;
+  --border: #d9e2ec;
+  --accent: #2563eb;
+  --high: #059669;
+  --mid: #d97706;
+  --low: #dc2626;
+}
+* { box-sizing: border-box; }
+body {
+  margin: 0;
+  font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Helvetica, Arial, sans-serif;
+  background: var(--bg);
+  color: var(--text);
+  line-height: 1.5;
+}
+.page {
+  max-width: 880px;
+  margin: 0 auto;
+  padding: 32px 20px 64px;
+}
+header h1 { margin: 0 0 8px; font-size: 1.75rem; }
+header .date { margin: 0; color: var(--muted); }
+.summary {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+  gap: 12px;
+  margin: 24px 0 32px;
+}
+.stat {
+  background: var(--card);
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  padding: 14px 16px;
+}
+.stat .label { display: block; color: var(--muted); font-size: 0.85rem; }
+.stat .value { font-size: 1.4rem; font-weight: 700; }
+h2 { margin: 32px 0 8px; }
+.hint { color: var(--muted); margin: 0 0 16px; }
+.empty { color: var(--muted); font-style: italic; }
+.country h3 {
+  margin: 24px 0 12px;
+  padding-bottom: 6px;
+  border-bottom: 1px solid var(--border);
+}
+.job-card {
+  background: var(--card);
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  padding: 16px 18px;
+  margin-bottom: 14px;
+}
+.job-card h4 { margin: 0 0 10px; }
+.job-card a { color: var(--accent); text-decoration: none; }
+.job-card a:hover { text-decoration: underline; }
+.company { color: var(--muted); font-weight: 500; }
+.meta, .responsibilities { margin: 0; padding-left: 18px; }
+.meta li { margin: 2px 0; }
+.responsibilities-label { margin: 12px 0 6px; font-weight: 600; }
+.score { font-weight: 700; }
+.score-high { color: var(--high); }
+.score-mid { color: var(--mid); }
+.score-low { color: var(--low); }
+.score-na { color: var(--muted); }
+""".strip()
 
 
 def generate_report(
@@ -97,54 +201,64 @@ def generate_report(
     report_date: Optional[date] = None,
 ) -> Path:
     report_date = report_date or date.today()
+    report_iso = report_date.isoformat()
     high_quality = [job for job in jobs if is_high_quality(job)]
     others = [job for job in jobs if job not in high_quality]
 
     hq_grouped = group_jobs_by_country(high_quality, countries)
     other_grouped = group_jobs_by_country(others, countries)
-
     country_order = countries + ["Other"]
-    lines = [
-        f"# LinkedIn Cloud/Infra Job Report — {report_date.isoformat()}",
-        "",
-        "## Summary",
-        "",
-        f"- **Total jobs in database:** {len(jobs)}",
-        f"- **High-quality matches (score ≥ {MIN_HIGH_QUALITY_SCORE}, on-site/hybrid, relocation-friendly):** {len(high_quality)}",
-        f"- **Other jobs:** {len(others)}",
-        "",
-        "## High-Quality Matches",
-        "",
-        f"Jobs with match score ≥ {MIN_HIGH_QUALITY_SCORE}, on-site or hybrid in target countries, with visa or relocation support.",
-        "",
+
+    hq_sections = [
+        render_country_section(country, hq_grouped.get(country, []))
+        for country in country_order
     ]
+    hq_html = "\n".join(section for section in hq_sections if section)
+    if not hq_html:
+        hq_html = "<p class=\"empty\">No high-quality matches found in this run.</p>"
 
-    has_high_quality = False
-    for country in country_order:
-        section = render_country_section(country, hq_grouped.get(country, []))
-        if section:
-            has_high_quality = True
-            lines.append(section)
+    other_sections = [
+        render_country_section(country, other_grouped.get(country, []))
+        for country in country_order
+    ]
+    other_html = "\n".join(section for section in other_sections if section)
+    if not other_html:
+        other_html = "<p class=\"empty\">No other jobs in database.</p>"
 
-    if not has_high_quality:
-        lines.append("_No high-quality matches found in this run._")
-        lines.append("")
-
-    lines.extend(["## Other Jobs", ""])
-    has_others = False
-    for country in country_order:
-        section = render_country_section(country, other_grouped.get(country, []))
-        if section:
-            has_others = True
-            lines.append(section)
-
-    if not has_others:
-        lines.append("_No other jobs in database._")
-        lines.append("")
+    document = f"""<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Career Job Hunter Report — {html.escape(report_iso)}</title>
+  <style>
+{REPORT_CSS}
+  </style>
+</head>
+<body>
+  <div class="page">
+    <header>
+      <h1>Career Job Hunter Report</h1>
+      <p class="date">{html.escape(report_iso)}</p>
+    </header>
+    <section class="summary" aria-label="Summary">
+      <div class="stat"><span class="label">Total jobs</span><span class="value">{len(jobs)}</span></div>
+      <div class="stat"><span class="label">High-quality matches</span><span class="value">{len(high_quality)}</span></div>
+      <div class="stat"><span class="label">Other jobs</span><span class="value">{len(others)}</span></div>
+    </section>
+    <h2>High-Quality Matches</h2>
+    <p class="hint">Score ≥ {MIN_HIGH_QUALITY_SCORE}, on-site or hybrid in target countries, with visa or relocation support.</p>
+    {hq_html}
+    <h2>Other Jobs</h2>
+    {other_html}
+  </div>
+</body>
+</html>
+"""
 
     output_dir.mkdir(parents=True, exist_ok=True)
-    report_path = output_dir / f"report_{report_date.isoformat()}.md"
-    report_path.write_text("\n".join(lines), encoding="utf-8")
+    report_path = output_dir / f"report_{report_iso}.html"
+    report_path.write_text(document, encoding="utf-8")
     return report_path
 
 
@@ -200,6 +314,7 @@ def run(
     all_stored_jobs = storage.list_jobs()
     report_path = generate_report(all_stored_jobs, countries, output_dir)
     print(f"Report written to {report_path}")
+    print(f"Open in browser: open {report_path}")
     return report_path
 
 

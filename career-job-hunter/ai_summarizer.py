@@ -51,15 +51,19 @@ def build_prompt(
     target_relocation = bool(search_params.get("target_relocation", True))
 
     relocation_goal = (
-        "The candidate wants to relocate and work ON-SITE or HYBRID in the target country "
-        f"({target_countries}). They do NOT want to work remotely from their current home country."
+        "Score the job against the candidate profile and search preferences below. "
+        f"Target countries: {target_countries or 'not specified'}."
     )
+    if target_relocation:
+        relocation_goal += (
+            " The candidate prefers relocating to work ON-SITE or HYBRID in a target country."
+        )
     if not allow_remote:
         relocation_goal += (
             " Pure Remote / work-from-home-country roles must be penalized."
         )
 
-    return f"""You are a senior Cloud/Infrastructure hiring analyst specializing in Kubernetes, DevOps, SRE, and Platform Engineering roles.
+    return f"""You are a hiring analyst evaluating LinkedIn job postings against a candidate's configured profile and search preferences. Do not assume a specific industry or tech stack beyond what the candidate profile contains.
 
 {relocation_goal}
 
@@ -78,7 +82,7 @@ Job description:
 
 Return ONLY a valid JSON object (no markdown, no commentary) with exactly these fields:
 
-1. tech_stack: array of key technologies mentioned in the JD (e.g. Kubernetes, AWS, GCP, Terraform, Docker, Go, Python, CI/CD, Linux, Observability tools). Use canonical names. Empty array if none found.
+1. tech_stack: array of key skills or technologies mentioned in the JD. Use canonical names. Empty array if none found.
 
 2. visa_relocation_info: a single string that explicitly states whether the job description mentions:
    - "Visa Sponsorship"
@@ -89,14 +93,14 @@ Return ONLY a valid JSON object (no markdown, no commentary) with exactly these 
 
 4. relocation_friendly: boolean. true if the role supports relocating to the target country (Visa Sponsorship, Relocation Support, or must be located in target country with relocation assistance). false for remote-from-home-country roles.
 
-5. core_responsibilities: array of at most 3 concise bullet points summarizing the core duties. Focus on Cloud/Infra/K8s/platform work.
+5. core_responsibilities: array of at most 3 concise bullet points summarizing the core duties.
 
 6. match_score: integer from 1 to 10. Scoring criteria:
-   - Skill overlap with candidate's K8s/Infra/DevOps stack (Go, Python, Kubernetes, Terraform, CI/CD, cloud platforms)
-   - Role fit for Cloud Engineer / DevOps / SRE / Platform Engineer
-   - HIGH SCORE (8-10): On-site or Hybrid in target country, with Visa Sponsorship or Relocation Support, must be located in target country but relocation/visa is offered
-   - LOW SCORE (1-4): "Remote from anywhere", "Work from your home country", or similar domestic remote arrangements — prefix match_reason with "[国内远程]"
-   - MEDIUM SCORE (5-7): unclear relocation/visa, or hybrid with weak relocation support
+   - Skill overlap with the candidate's stated skills
+   - Role fit against the candidate's target_roles and preferences
+   - HIGH SCORE (8-10): strong skill/role fit, and (if target_relocation is true) On-site or Hybrid in a target country with Visa Sponsorship or Relocation Support
+   - LOW SCORE (1-4): poor skill/role fit, or "Remote from anywhere" / "Work from your home country" when remote is not allowed — prefix match_reason with "[国内远程]"
+   - MEDIUM SCORE (5-7): partial skill/role fit, or unclear relocation/visa support
 
 7. match_reason: one or two sentences explaining the match_score. If the role is remote-from-home-country, start with "[国内远程]".
 

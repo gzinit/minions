@@ -6,7 +6,8 @@ config.json
 *.db
 *.sqlite3
 rapidapi_quota.json
-report_*.md
+/report_*.md
+/report_*.html
 
 # Python
 venv/
